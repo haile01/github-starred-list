@@ -62,7 +62,7 @@ class ListHandler:
 
   def __preprocess(self, s):
     s = s.replace('&amp;', '&')
-    s = re.sub(r'[^\w\s]', '', s) # remove special chars
+    s = re.sub(r'[^\w\s]', ' ', s) # replace special chars with space
     s = s.lower().strip() # lower case and remove leading/trailing spaces
     s = re.sub(r'\s+', ' ', s) # combine multiple spaces into one
     s = s.replace(' ', '-') # replace space with dash
@@ -158,7 +158,7 @@ class ListHandler:
     }
 
     r = self.__post(f'/{repo}/lists', data=data)
-    assert r.status_code == 200, f"Failed, please check your cookies again"
+    return r.status_code == 200
   
   def available_lists(self, raw=False):
     # TODO: replace with more elegant way to get available lists
@@ -186,11 +186,11 @@ class ListHandler:
     available_lists = self.available_lists(raw=False)
     if len(available_lists) == self.GH_REPO_LIMIT:
       print(f"GitHub limit reached, can't create more than {self.GH_REPO_LIMIT} lists")
-      return
+      return False
     
     if self.__preprocess(name) in available_lists:
       print(f"List {name} already exists")
-      return
+      return True
     
 
     r = self.__get(f'/{self.user}?tab=stars')
@@ -204,18 +204,16 @@ class ListHandler:
     }
 
     r = self.__post(f'/stars/{self.user}/lists', data=data)
-    assert r.status_code == 200, f"Failed, please check your cookies again"
+    return r.status_code == 200
 
   
   def add_repo(self, repo, _list):
-    self.__repo_to_list(repo, _list)
+    return self.__repo_to_list(repo, _list)
 
   def remove_repo(self, repo, _list):
-    self.__repo_to_list(repo, _list, add=False)
+    return self.__repo_to_list(repo, _list, add=False)
 
   def delete_list(self, _list):
-    
-    
     _list = self.__preprocess(_list)
     r = self.__get(f'/stars/{self.user}/lists/{_list}')
     
@@ -228,4 +226,4 @@ class ListHandler:
     }
 
     r = self.__post(f'/stars/{self.user}/lists/{_list}', data=data)
-    assert r.status_code == 200, f"Failed, please check your cookies again"
+    return r.status_code == 200
