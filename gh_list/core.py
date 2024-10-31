@@ -1,7 +1,51 @@
 import requests
 import re
 
-class ListHelper:
+class ListHandler:
+  """
+  Handles operations related to GitHub starred repositories lists, 
+  such as creating, adding, removing, and deleting lists.
+  
+  Attributes:
+    HOST (str): The base URL for GitHub.
+    CSRF_TOKEN_PATTERN (str): Regex pattern to find CSRF token in HTML.
+    REPO_ID_PATTERN (str): Regex pattern to find repository ID in HTML.
+    HEADERS (dict): Default headers for HTTP requests.
+    debug_mode (bool): Flag to enable debug mode.
+    user (str): GitHub username.
+    cookies (dict): Parsed cookies for authentication.
+  Methods:
+    __init__(user, cookie, debug_mode=False):
+      Initializes the ListHandler with the given user, cookie, and debug mode.
+    __debug(*args):
+      Prints debug information if debug mode is enabled.
+    __parse_cookie(cookie_str):
+      Parses a cookie string into a dictionary.
+    __init_requests():
+      Initializes the GET and POST request methods with default headers and cookies.
+    __search_before_text(s, pattern, text):
+      Searches for a pattern in a string before a specified text.
+    __get_list_mapping_and_token(repo):
+      Retrieves the list mapping and CSRF token for a given repository.
+    __get_repo_id(repo):
+      Retrieves the repository ID for a given repository.
+    __repo_to_list(repo, _list, add=True):
+      Adds or removes a repository to/from a list.
+    create_list(name, desc):
+      Creates a new list with the given name and description.
+    add_repo(repo, _list):
+      Adds a repository to a specified list.
+    remove_repo(repo, _list):
+      Removes a repository from a specified list.
+    delete_list(_list):
+      Deletes a specified list.
+  Usage:
+    handler = ListHandler(user="username", cookie="cookie_string", debug_mode=True)
+    handler.create_list(name="My List", desc="Description of my list")
+    handler.add_repo(repo="repo_name", _list="My List")
+    handler.remove_repo(repo="repo_name", _list="My List")
+    handler.delete_list(_list="My List")
+  """
   def __init__(self, user, cookie, debug_mode=False):
     self.HOST = "https://github.com"
     self.CSRF_TOKEN_PATTERN = r'<input type="hidden" name="authenticity_token" value="(.+?)" autocomplete="off" />'
@@ -18,9 +62,12 @@ class ListHelper:
   def __parse_cookie(self, s):
     cookies = {}
     for c in s.split(';'):
-      name, value = c.strip().split('=')
+      try:
+        name, value = c.strip().split('=')
+      except:
+        print(f"Error parsing cookie: {c}, should be in format 'name=value'")
+        continue
       cookies[name] = value
-
     return cookies
 
   def __init_requests(self, cookie):
@@ -34,15 +81,15 @@ class ListHelper:
       "Origin": "https://github.com"
     }
 
-    cookies = self.__parse_cookie(cookie)
+    self.cookies = self.__parse_cookie(cookie)
 
     def get(path, *args, **kwargs):
       self.__debug('get', args, kwargs)
-      return requests.get(self.HOST + path, *args, **kwargs, cookies=cookies)
+      return requests.get(self.HOST + path, *args, **kwargs, cookies=self.cookies)
 
     def post(path, *args, **kwargs):
       self.__debug('post', args, kwargs)
-      return requests.post(self.HOST + path, *args, **kwargs, headers=headers, cookies=cookies)
+      return requests.post(self.HOST + path, *args, **kwargs, headers=headers, cookies=self.cookies)
 
     return get, post
 
@@ -102,7 +149,7 @@ class ListHelper:
     }
 
     r = self.__post(f'/{repo}/lists', data=data)
-    assert r.status_code == 200, "Should be OK"
+    assert r.status_code == 200, f"Failed, please check your cookies again {self.cookies}"
 
   def create_list(self, name, desc):
     r = self.__get(f'/{self.user}?tab=stars')
@@ -116,7 +163,7 @@ class ListHelper:
     }
 
     r = self.__post(f'/stars/{self.user}/lists', data=data)
-    assert r.status_code == 200, "Should be OK"
+    assert r.status_code == 200, f"Failed, please check your cookies again {self.cookies}"
 
   def add_repo(self, repo, _list):
     self.__repo_to_list(repo, _list)
@@ -125,9 +172,18 @@ class ListHelper:
     self.__repo_to_list(repo, _list, add=False)
 
   def delete_list(self, _list):
+    def preprocess(s):
+      s = re.sub(r'[^\w\s]', '', s) # remove special chars
+      s = s.lower().strip() # lower case and remove leading/trailing spaces
+      s = re.sub(r'\s+', ' ', s) # combine multiple spaces into one
+      s = s.replace(' ', '-') # replace space with dash
+      return s
+    
+    _list = preprocess(_list)
     r = self.__get(f'/stars/{self.user}/lists/{_list}')
+    
     token = self.__search_before_text(r.text, self.CSRF_TOKEN_PATTERN, '<button type="submit" data-view-component="true" class="btn-danger btn">')
-    assert token is not None, "Can get token"
+    assert token is not None, f"Can get token, list {_list} doesn't exist"
 
     data = {
       "_method": "delete",
@@ -135,15 +191,4 @@ class ListHelper:
     }
 
     r = self.__post(f'/stars/{self.user}/lists/{_list}', data=data)
-    assert r.status_code == 200, "Should be OK"
-
-if __name__ == "__main__":
-  cookie = """..."""
-  helper = ListHelper("haile01", cookie)
-  helper.create_list("test1234", "ahgihihiihihi")
-  input()
-  helper.add_repo("codeigniter4/shield", "test1234")
-  input()
-  helper.remove_repo("codeigniter4/shield", "test1234")
-  input()
-  helper.delete_list("test1234")
+    assert r.status_code == 200, f"Failed, please check your cookies again {self.cookies}"
