@@ -61,6 +61,7 @@ class ListHandler:
       print("[github-starred-list]", *args)
 
   def __preprocess(self, s):
+    s = s.replace('&amp;', '&')
     s = re.sub(r'[^\w\s]', '', s) # remove special chars
     s = s.lower().strip() # lower case and remove leading/trailing spaces
     s = re.sub(r'\s+', ' ', s) # combine multiple spaces into one
@@ -144,7 +145,9 @@ class ListHandler:
 
   def __repo_to_list(self, repo, _list, add=True):
     mapping, token = self.__get_list_mapping_and_token(repo)
-    assert _list in mapping, "List doesn't exist"
+    mapping = {self.__preprocess(k): v for k, v in mapping.items()}
+    _list = self.__preprocess(_list)
+    assert _list in mapping, f"List doesn't exist: {_list}, available lists: {list(mapping.keys())}"
 
     list_id = mapping[_list]
 
