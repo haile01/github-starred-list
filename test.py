@@ -23,6 +23,7 @@ if __name__ == "__main__":
 
     cookie = ""
     helper = ListHandler(username, cookie)
+    print(helper.available_lists(raw=True))
     helper.create_list(list_title, list_description)
     helper.add_repo(repo_name, list_title)
     helper.remove_repo(repo_name, list_title)

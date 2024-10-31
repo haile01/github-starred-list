@@ -51,7 +51,7 @@ class ListHandler:
     self.HOST = "https://github.com"
     self.CSRF_TOKEN_PATTERN = r'<input type="hidden" name="authenticity_token" value="(.+?)" autocomplete="off" />'
     self.REPO_ID_PATTERN = r'<input type="hidden" name="repository_id" value="([0-9]+)">'
-
+    self.GH_REPO_LIMIT = 32
     self.debug_mode = debug_mode
     self.user = user
     self.__get, self.__post = self.__init_requests(cookie)
@@ -126,14 +126,12 @@ class ListHandler:
                   >
                   <span data-view-component="true" class="Truncate ml-2 text-normal f5">
     <span data-view-component="true" class="Truncate-text">(.+?)</span>"""
-
     found = re.findall(pattern, r.text, re.MULTILINE)
     for l in found:
       mapping[l[1]] = l[0]
 
     # token
     found = re.findall(self.CSRF_TOKEN_PATTERN, r.text)
-
     return mapping, found[0]
 
   def __get_repo_id(self, repo):
@@ -161,11 +159,40 @@ class ListHandler:
 
     r = self.__post(f'/{repo}/lists', data=data)
     assert r.status_code == 200, f"Failed, please check your cookies again"
+  
+  def available_lists(self, raw=False):
+    # TODO: replace with more elegant way to get available lists
+    repo = 'octocat/Hello-World' # just a random repo
+    mapping = {}
+    r = self.__get(f'/{repo}/lists')
 
+    pattern = r"""<input
+                    type="checkbox"
+                    class="mx-0 js-user-list-menu-item"
+                    name="list_ids\[\]"
+                    value="([0-9]+)"
+                    (?:checked)?
+                  >
+                  <span data-view-component="true" class="Truncate ml-2 text-normal f5">
+    <span data-view-component="true" class="Truncate-text">(.+?)</span>"""
+    found = re.findall(pattern, r.text, re.MULTILINE)
+    for l in found:
+      mapping[l[1]] = l[0]
+    if raw:
+      return list(mapping.keys())
+    return [self.__preprocess(k) for k in mapping.keys()]
+  
   def create_list(self, name, desc):
-    # TODO: check if list already exists
-    # TODO: check if total lists < 32 (github limit), raise exception if limit reached
+    available_lists = self.available_lists(raw=False)
+    if len(available_lists) == self.GH_REPO_LIMIT:
+      print(f"GitHub limit reached, can't create more than {self.GH_REPO_LIMIT} lists")
+      return
     
+    if self.__preprocess(name) in available_lists:
+      print(f"List {name} already exists")
+      return
+    
+
     r = self.__get(f'/{self.user}?tab=stars')
     token = self.__search_before_text(r.text, self.CSRF_TOKEN_PATTERN, "Create a list to organize your starred repositories.")
     assert token is not None, "Can get token"
