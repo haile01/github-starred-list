@@ -1,1 +1,4 @@
 .projectile
+*__pycache__*
+*.egg-info
+.env
