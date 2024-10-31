@@ -1,5 +1,5 @@
 ## Github starred list
-Some low-effort effort to automate categorizing starred repos on Github cuz RestAPI ain't do that anytime soon
+Some low-effort effort to automate categorizing starred repos on Github cuz RestAPI ain't gonna do that anytime soon
 
 ### How to?
 Initialize with github username and cookie header grabbed from `https://github.com/<urname>?tab=stars`

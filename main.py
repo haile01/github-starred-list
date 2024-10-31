@@ -2,13 +2,18 @@ import requests
 import re
 
 class ListHelper:
-  def __init__(self, user, cookie):
+  def __init__(self, user, cookie, debug_mode=False):
     self.HOST = "https://github.com"
     self.CSRF_TOKEN_PATTERN = r'<input type="hidden" name="authenticity_token" value="(.+?)" autocomplete="off" />'
     self.REPO_ID_PATTERN = r'<input type="hidden" name="repository_id" value="([0-9]+)">'
 
+    self.debug_mode = debug_mode
     self.user = user
     self.__get, self.__post = self.__init_requests(cookie)
+
+  def __debug(self, *args):
+    if self.debug_mode:
+      print("[github-starred-list]", *args)
 
   def __parse_cookie(self, s):
     cookies = {}
@@ -32,11 +37,11 @@ class ListHelper:
     cookies = self.__parse_cookie(cookie)
 
     def get(path, *args, **kwargs):
-      print('get', args, kwargs)
+      self.__debug('get', args, kwargs)
       return requests.get(self.HOST + path, *args, **kwargs, cookies=cookies)
 
     def post(path, *args, **kwargs):
-      print('post', args, kwargs)
+      self.__debug('post', args, kwargs)
       return requests.post(self.HOST + path, *args, **kwargs, headers=headers, cookies=cookies)
 
     return get, post
