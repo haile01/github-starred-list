@@ -1,6 +1,7 @@
 import requests
 import re
 
+
 class ListHandler:
   """
   Handles operations related to GitHub starred repositories lists, 
@@ -59,6 +60,13 @@ class ListHandler:
     if self.debug_mode:
       print("[github-starred-list]", *args)
 
+  def __preprocess(self, s):
+    s = re.sub(r'[^\w\s]', '', s) # remove special chars
+    s = s.lower().strip() # lower case and remove leading/trailing spaces
+    s = re.sub(r'\s+', ' ', s) # combine multiple spaces into one
+    s = s.replace(' ', '-') # replace space with dash
+    return s
+  
   def __parse_cookie(self, s):
     cookies = {}
     for c in s.split(';'):
@@ -149,9 +157,12 @@ class ListHandler:
     }
 
     r = self.__post(f'/{repo}/lists', data=data)
-    assert r.status_code == 200, f"Failed, please check your cookies again {self.cookies}"
+    assert r.status_code == 200, f"Failed, please check your cookies again"
 
   def create_list(self, name, desc):
+    # TODO: check if list already exists
+    # TODO: check if total lists < 32 (github limit), raise exception if limit reached
+    
     r = self.__get(f'/{self.user}?tab=stars')
     token = self.__search_before_text(r.text, self.CSRF_TOKEN_PATTERN, "Create a list to organize your starred repositories.")
     assert token is not None, "Can get token"
@@ -163,8 +174,9 @@ class ListHandler:
     }
 
     r = self.__post(f'/stars/{self.user}/lists', data=data)
-    assert r.status_code == 200, f"Failed, please check your cookies again {self.cookies}"
+    assert r.status_code == 200, f"Failed, please check your cookies again"
 
+  
   def add_repo(self, repo, _list):
     self.__repo_to_list(repo, _list)
 
@@ -172,14 +184,9 @@ class ListHandler:
     self.__repo_to_list(repo, _list, add=False)
 
   def delete_list(self, _list):
-    def preprocess(s):
-      s = re.sub(r'[^\w\s]', '', s) # remove special chars
-      s = s.lower().strip() # lower case and remove leading/trailing spaces
-      s = re.sub(r'\s+', ' ', s) # combine multiple spaces into one
-      s = s.replace(' ', '-') # replace space with dash
-      return s
     
-    _list = preprocess(_list)
+    
+    _list = self.__preprocess(_list)
     r = self.__get(f'/stars/{self.user}/lists/{_list}')
     
     token = self.__search_before_text(r.text, self.CSRF_TOKEN_PATTERN, '<button type="submit" data-view-component="true" class="btn-danger btn">')
@@ -191,4 +198,4 @@ class ListHandler:
     }
 
     r = self.__post(f'/stars/{self.user}/lists/{_list}', data=data)
-    assert r.status_code == 200, f"Failed, please check your cookies again {self.cookies}"
+    assert r.status_code == 200, f"Failed, please check your cookies again"
