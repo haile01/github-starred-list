@@ -26,8 +26,10 @@ class ListHandler:
       Initializes the GET and POST request methods with default headers and cookies.
     __search_before_text(s, pattern, text):
       Searches for a pattern in a string before a specified text.
-    __get_list_mapping_and_token(repo):
+    __get_list_mapping_and_token(repo, raw):
       Retrieves the list mapping and CSRF token for a given repository.
+      Leave repo as blank if only need to retrieve the list.
+      `raw=True` if list names are not preprocessed.
     __get_repo_id(repo):
       Retrieves the repository ID for a given repository.
     __repo_to_list(repo, _list, add=True):
@@ -113,7 +115,7 @@ class ListHandler:
 
     return found[-1]
 
-  def __get_list_mapping_and_token(self, repo):
+  def __get_list_mapping_and_token(self, repo='octocat/Hello-World', raw=False):
     mapping = {}
     r = self.__get(f'/{repo}/lists')
 
@@ -128,7 +130,8 @@ class ListHandler:
     <span data-view-component="true" class="Truncate-text">(.+?)</span>"""
     found = re.findall(pattern, r.text, re.MULTILINE)
     for l in found:
-      mapping[l[1]] = l[0]
+      list_name = l[1] if raw else self.__preprocess(l[1])
+      mapping[list_name] = l[0]
 
     # token
     found = re.findall(self.CSRF_TOKEN_PATTERN, r.text)
@@ -143,7 +146,6 @@ class ListHandler:
 
   def __repo_to_list(self, repo, _list, add=True):
     mapping, token = self.__get_list_mapping_and_token(repo)
-    mapping = {self.__preprocess(k): v for k, v in mapping.items()}
     _list = self.__preprocess(_list)
     assert _list in mapping, f"List doesn't exist: {_list}, available lists: {list(mapping.keys())}"
 
@@ -161,27 +163,9 @@ class ListHandler:
     return r.status_code == 200
   
   def available_lists(self, raw=False):
-    # TODO: replace with more elegant way to get available lists
-    repo = 'octocat/Hello-World' # just a random repo
-    mapping = {}
-    r = self.__get(f'/{repo}/lists')
+    mapping, _ = self.__get_list_mapping_and_token(raw=raw)
+    return mapping.keys()
 
-    pattern = r"""<input
-                    type="checkbox"
-                    class="mx-0 js-user-list-menu-item"
-                    name="list_ids\[\]"
-                    value="([0-9]+)"
-                    (?:checked)?
-                  >
-                  <span data-view-component="true" class="Truncate ml-2 text-normal f5">
-    <span data-view-component="true" class="Truncate-text">(.+?)</span>"""
-    found = re.findall(pattern, r.text, re.MULTILINE)
-    for l in found:
-      mapping[l[1]] = l[0]
-    if raw:
-      return list(mapping.keys())
-    return [self.__preprocess(k) for k in mapping.keys()]
-  
   def create_list(self, name, desc):
     available_lists = self.available_lists(raw=False)
     if len(available_lists) == self.GH_REPO_LIMIT:
