@@ -26,6 +26,10 @@ gh-list delete --user "gh_username" --cookie "cookie_str" --list "listname"
 
 For more information, run `gh-list --help`.
 
+## Built With `gh-list`
+
+- [StarListify](https://github.com/nhtlongcs/StarListify) StarListify is a Python package that transforms your GitHub stars into an organized, categorized resource, making it easy to browse and access your starred repositories. By fetching starred repositories and extracting key information—like the README content—it sorts them into lists based on custom user preferences or README-inferred topics.
+
 ## ❓ FAQ
 
 ### How to get the cookie string?
