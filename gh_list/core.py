@@ -51,7 +51,7 @@ class ListHandler:
   """
   def __init__(self, user, cookie, debug_mode=False):
     self.HOST = "https://github.com"
-    self.CSRF_TOKEN_PATTERN = r'<input type="hidden" name="authenticity_token" value="(.+?)" autocomplete="off" />'
+    self.CSRF_TOKEN_PATTERN = r'name="authenticity_token"[^>]*value="(.+?)"'
     self.REPO_ID_PATTERN = r'<input type="hidden" name="repository_id" value="([0-9]+)">'
     self.GH_REPO_LIMIT = 32
     self.debug_mode = debug_mode
@@ -119,16 +119,8 @@ class ListHandler:
     mapping = {}
     r = self.__get(f'/{repo}/lists')
 
-    pattern = r"""<input
-                    type="checkbox"
-                    class="mx-0 js-user-list-menu-item"
-                    name="list_ids\[\]"
-                    value="([0-9]+)"
-                    (?:checked)?
-                  >
-                  <span data-view-component="true" class="Truncate ml-2 text-normal f5">
-    <span data-view-component="true" class="Truncate-text">(.+?)</span>"""
-    found = re.findall(pattern, r.text, re.MULTILINE)
+    pattern = r'<input\s+type="checkbox"\s+class="mx-0 js-user-list-menu-item"\s+name="list_ids\[\]"\s+value="([0-9]+)"\s*(?:checked)?\s*>\s*<span[^>]*class="Truncate ml-2 text-normal f5"[^>]*>\s*<span[^>]*class="Truncate-text"[^>]*>(.+?)<\/span>'
+    found = re.findall(pattern, r.text)
     for l in found:
       list_name = l[1] if raw else self.__preprocess(l[1])
       mapping[list_name] = l[0]
